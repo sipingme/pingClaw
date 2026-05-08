@@ -5,6 +5,7 @@ scenario: gateway-backend-communication
 taskType: runtime-bridge
 intent: Ensure the packaged OpenClaw runtime can load built-in provider extensions before chat sends reach configured model providers.
 touchedAreas:
+  - harness/specs/tasks/fix-packaged-openclaw-self-imports.md
   - scripts/bundle-openclaw.mjs
   - scripts/openclaw-self-import-patch.mjs
   - tests/unit/openclaw-self-import-patch.test.ts
