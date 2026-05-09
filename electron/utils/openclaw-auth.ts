@@ -26,7 +26,7 @@ import {
   isOAuthProviderType,
   isOpenClawOAuthPluginProviderKey,
 } from './provider-keys';
-import { normalizePiAiModelCost, type PiAiModelCostRates } from '@electron/shared/pi-ai-model-cost';
+import { normalizePiAiModelCost, type PiAiModelCostRates } from '../shared/pi-ai-model-cost';
 import { withConfigLock } from './config-mutex';
 
 const AUTH_STORE_VERSION = 1;
