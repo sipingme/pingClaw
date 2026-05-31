@@ -6,7 +6,8 @@ This directory contains the application icons for all supported platforms.
 
 | File | Platform | Description |
 |------|----------|-------------|
-| `icon.svg` | Source | Vector source for all icons |
+| `export.svg` | Source | Primary logo export (used for app icons) |
+| `icon.svg` | Source | Legacy vector fallback |
 | `icon.icns` | macOS | Apple Icon Image format |
 | `icon.ico` | Windows | Windows ICO format |
 | `icon.png` | All | 512x512 PNG fallback |
@@ -72,8 +73,7 @@ If you prefer to generate icons manually:
 
 ## Updating the Icon
 
-1. Edit `icon.svg` with your vector editor (Figma, Illustrator, Inkscape)
-2. For macOS tray icon, edit `tray-icon-template.svg` (must be single-color black on transparent)
-3. Run `node scripts/generate-icons.mjs`
+1. Update `export.svg` at the project root (or edit `resources/icons/icon.svg` as fallback)
+2. Run `node scripts/generate-icons.mjs`
 4. Verify generated icons look correct
 5. Commit all generated files
