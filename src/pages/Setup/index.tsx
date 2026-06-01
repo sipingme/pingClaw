@@ -16,6 +16,7 @@ import {
   XCircle,
   ExternalLink,
   Terminal,
+  HardDriveDownload,
   Sparkles,
   Puzzle,
   Monitor,
@@ -128,9 +129,18 @@ function SetupHint({
 // NOTE: Channel types moved to Settings > Channels page
 // NOTE: Skill bundles moved to Settings > Skills page - auto-install essential skills during setup
 
+interface PortableImportStatus {
+  offerImport: boolean;
+  hostOpenClawDir: string;
+  portableOpenClawDir: string;
+  hostFileCount: number;
+}
+
 export function Setup() {
   const { t } = useTranslation(['setup', 'channels']);
   const navigate = useNavigate();
+  const [importGateReady, setImportGateReady] = useState(false);
+  const [showImportGate, setShowImportGate] = useState(false);
   const [currentStep, setCurrentStep] = useState<number>(STEP.WELCOME);
 
   // Setup state
@@ -148,6 +158,27 @@ export function Setup() {
   const isLastStep = safeStepIndex === steps.length - 1;
 
   const markSetupComplete = useSettingsStore((state) => state.markSetupComplete);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void hostApiFetch<PortableImportStatus>('/api/app/portable/import-status')
+      .then((status) => {
+        if (!cancelled) {
+          setShowImportGate(status.offerImport);
+          setImportGateReady(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setImportGateReady(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Derive canProceed based on current step - computed directly to avoid useEffect
   const canProceed = useMemo(() => {
@@ -194,6 +225,26 @@ export function Setup() {
     }, 1000);
   }, []);
 
+
+  if (!importGateReady) {
+    return (
+      <div data-testid="setup-page" className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+        <TitleBar />
+        <div className="flex flex-1 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  if (showImportGate) {
+    return (
+      <div data-testid="setup-page" className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+        <TitleBar />
+        <PortableImportGate onDone={() => setShowImportGate(false)} />
+      </div>
+    );
+  }
 
   return (
     <div data-testid="setup-page" className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
@@ -361,6 +412,143 @@ export function Setup() {
 
 // ==================== Step Content Components ====================
 
+function PortableImportGate({ onDone }: { onDone: () => void }) {
+  const { t } = useTranslation('setup');
+  const [status, setStatus] = useState<PortableImportStatus | null>(null);
+  const [phase, setPhase] = useState<'prompt' | 'importing' | 'success' | 'error'>('prompt');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    void hostApiFetch<PortableImportStatus>('/api/app/portable/import-status').then(setStatus);
+  }, []);
+
+  const handleImport = async () => {
+    setPhase('importing');
+    setErrorMessage(null);
+    try {
+      const result = await hostApiFetch<{ success: boolean; error?: string }>('/api/app/portable/import', {
+        method: 'POST',
+      });
+      if (result.success) {
+        setPhase('success');
+        toast.success(t('import.successTitle'));
+        window.setTimeout(onDone, 900);
+        return;
+      }
+      setPhase('error');
+      setErrorMessage(result.error || t('import.errorTitle'));
+    } catch (error) {
+      setPhase('error');
+      setErrorMessage(String(error));
+    }
+  };
+
+  const handleSkip = async () => {
+    try {
+      await hostApiFetch('/api/app/portable/import/dismiss', { method: 'POST' });
+    } catch {
+      // Continue even if dismiss fails — user chose a fresh start.
+    }
+    onDone();
+  };
+
+  return (
+    <div className="relative flex-1 overflow-auto bg-grid bg-vignette">
+      <div className="mx-auto max-w-[46.2rem] p-8">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
+            <HardDriveDownload className="h-6 w-6 text-primary" />
+          </div>
+          <h1 className="mb-2 text-2xl font-semibold tracking-tight">{t('import.title')}</h1>
+          <p className="mx-auto max-w-lg text-sm leading-relaxed text-muted-foreground">{t('import.subtitle')}</p>
+        </div>
+
+        <div className="rounded-xl border border-border/60 bg-card/80 p-8 shadow-sm backdrop-blur-sm">
+          {status && (
+            <div className="space-y-3 text-sm">
+              <div>
+                <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">{t('import.hostPath')}</p>
+                <p className="mt-1 break-all font-mono text-xs text-foreground/90">{status.hostOpenClawDir}</p>
+              </div>
+              <div>
+                <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">{t('import.portablePath')}</p>
+                <p className="mt-1 break-all font-mono text-xs text-foreground/90">{status.portableOpenClawDir}</p>
+              </div>
+              <p className="text-xs text-muted-foreground">{t('import.fileCount', { count: status.hostFileCount })}</p>
+            </div>
+          )}
+
+          {phase === 'importing' && (
+            <SetupHint variant="info" className="mt-6">
+              <p className="font-medium">{t('import.importing')}</p>
+              <p className="text-2xs text-muted-foreground">{t('import.importingHint')}</p>
+            </SetupHint>
+          )}
+
+          {phase === 'success' && (
+            <SetupHint variant="success" className="mt-6">
+              <p className="font-medium">{t('import.successTitle')}</p>
+              <p className="text-2xs text-muted-foreground">{t('import.successBody')}</p>
+            </SetupHint>
+          )}
+
+          {phase === 'error' && (
+            <SetupHint variant="warn" className="mt-6">
+              <p className="font-medium">{t('import.errorTitle')}</p>
+              <p className="text-2xs text-muted-foreground">{errorMessage}</p>
+            </SetupHint>
+          )}
+
+          <div className="mt-8 flex flex-wrap justify-end gap-2">
+            {phase === 'error' ? (
+              <>
+                <Button variant="ghost" size="sm" className="h-8 px-3 text-xs" onClick={handleSkip}>
+                  {t('import.skipAction')}
+                </Button>
+                <Button size="sm" className="h-8 px-3 text-xs" onClick={handleImport}>
+                  {t('import.importAction')}
+                </Button>
+              </>
+            ) : phase === 'success' ? (
+              <Button size="sm" className="h-8 px-3 text-xs" onClick={onDone}>
+                {t('import.continueSetup')}
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                  onClick={handleSkip}
+                  disabled={phase === 'importing'}
+                >
+                  {t('import.skipAction')}
+                </Button>
+                <Button
+                  data-testid="portable-import-button"
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                  onClick={handleImport}
+                  disabled={phase === 'importing' || !status}
+                >
+                  {phase === 'importing' ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      {t('import.importing')}
+                    </>
+                  ) : (
+                    t('import.importAction')
+                  )}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SetupLanguageToggle({ className }: { className?: string }) {
   const { t } = useTranslation('setup');
   const { language, setLanguage } = useSettingsStore();
@@ -403,14 +591,9 @@ function WelcomeContent() {
 
   return (
     <div data-testid="setup-welcome-step" className="space-y-8">
-      <div className="relative text-center">
-        <div className="pointer-events-none absolute inset-x-0 top-1/2 h-32 -translate-y-1/2 bg-primary/10 blur-3xl" aria-hidden="true" />
-
-        <div className="relative mx-auto mb-5 flex h-20 w-20 items-center justify-center">
-          <div className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl" aria-hidden="true" />
-          <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-primary/25 bg-card/70 shadow-[0_0_40px_-12px_hsl(var(--primary)/0.55)]">
-            <PingClawLogo className="h-12 w-12" />
-          </div>
+      <div className="text-center">
+        <div className="mx-auto mb-5 flex items-center justify-center">
+          <PingClawLogo className="h-16 w-16" />
         </div>
 
         <h2 className="text-3xl font-semibold tracking-tight text-foreground">

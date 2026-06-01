@@ -1,8 +1,7 @@
 import { access, lstat, readdir, readFile, realpath, stat } from 'node:fs/promises';
 import { constants } from 'node:fs';
-import { homedir } from 'node:os';
 import { basename, join, relative, resolve } from 'node:path';
-import { expandPath, getOpenClawResolvedDir, getOpenClawSkillsDir, getResourcesDir } from './paths';
+import { expandPath, getExpandHomeDir, getOpenClawExtensionsDir, getOpenClawResolvedDir, getOpenClawSkillsDir, getResourcesDir } from './paths';
 
 export type QuickAccessSkillSource = 'workspace' | 'openclaw' | 'agents' | 'legacy';
 
@@ -243,7 +242,7 @@ async function resolveLegacyRoots(explicitRoots?: string[]): Promise<string[]> {
 
   const openClawDir = getOpenClawResolvedDir();
   const extensionSkillRoots = await discoverExtensionSkillRoots([
-    join(homedir(), '.openclaw', 'extensions'),
+    getOpenClawExtensionsDir(),
     join(openClawDir, 'extensions'),
     join(openClawDir, 'dist', 'extensions'),
   ]);
@@ -257,7 +256,7 @@ async function resolveLegacyRoots(explicitRoots?: string[]): Promise<string[]> {
 async function buildDescriptors(params: QuickAccessScanParams): Promise<SourceDescriptor[]> {
   const workspace = params.workspace ? expandPath(params.workspace) : '';
   const openClawDir = params.openClawDir ? expandPath(params.openClawDir) : '';
-  const personalAgentsDir = join(homedir(), '.agents');
+  const personalAgentsDir = join(getExpandHomeDir(), '.agents');
   const resourcesDir = getResourcesDir();
   const agentsRoots = params.agentsRoots
     ? dedupePaths(params.agentsRoots)

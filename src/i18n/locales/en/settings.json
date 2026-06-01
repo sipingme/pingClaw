@@ -12,6 +12,16 @@
     "launchAtStartup": "Launch at system startup",
     "launchAtStartupDesc": "Automatically launch PingClaw when you log in"
   },
+  "portable": {
+    "badge": "Portable mode",
+    "banner": "Data is stored on this USB drive. Host login items and CLI install to ~/.local/bin are disabled.",
+    "dataDir": "OpenClaw data",
+    "importOffer": "OpenClaw data found on this computer ({{count}} items).",
+    "importAction": "Import to USB",
+    "importImporting": "Importing…",
+    "importSuccess": "OpenClaw data copied to the portable drive.",
+    "importFailed": "Import failed: {{error}}"
+  },
   "aiProviders": {
     "title": "AI Providers",
     "description": "Configure your AI model providers and API keys",

@@ -6,6 +6,12 @@ import { createRequire } from 'node:module';
 import { join } from 'path';
 import { homedir } from 'os';
 import { existsSync, mkdirSync, readFileSync, realpathSync } from 'fs';
+import { bootstrapPortableRuntime, isPortableMode } from './portable-runtime';
+
+bootstrapPortableRuntime({
+  execPath: process.execPath,
+  resourcesPath: process.resourcesPath,
+});
 
 const require = createRequire(import.meta.url);
 
@@ -38,20 +44,55 @@ function getElectronApp() {
 }
 
 /**
+ * Home directory used for ~ expansion and legacy fallbacks.
+ * In portable mode this points at `<portable-root>/data/home`.
+ */
+export function getExpandHomeDir(): string {
+  if (isPortableMode()) {
+    const portableRoot = process.env.PINGCLAW_PORTABLE_ROOT?.trim();
+    if (portableRoot) {
+      return join(portableRoot, 'data', 'home');
+    }
+  }
+  return homedir();
+}
+
+/**
  * Expand ~ to home directory
  */
 export function expandPath(path: string): string {
   if (path.startsWith('~')) {
-    return path.replace('~', homedir());
+    return path.replace('~', getExpandHomeDir());
   }
   return path;
 }
 
 /**
- * Get OpenClaw config directory
+ * Get OpenClaw state directory (~/.openclaw in normal mode).
  */
 export function getOpenClawConfigDir(): string {
-  return join(homedir(), '.openclaw');
+  return process.env.OPENCLAW_STATE_DIR?.trim() || join(getExpandHomeDir(), '.openclaw');
+}
+
+/**
+ * Get OpenClaw config file path.
+ */
+export function getOpenClawConfigPath(): string {
+  return process.env.OPENCLAW_CONFIG_PATH?.trim() || join(getOpenClawConfigDir(), 'openclaw.json');
+}
+
+/**
+ * Get OpenClaw extensions directory.
+ */
+export function getOpenClawExtensionsDir(): string {
+  return join(getOpenClawConfigDir(), 'extensions');
+}
+
+/**
+ * Get OpenClaw agents directory.
+ */
+export function getOpenClawAgentsDir(): string {
+  return join(getOpenClawConfigDir(), 'agents');
 }
 
 /**
@@ -65,8 +106,10 @@ export function getOpenClawSkillsDir(): string {
  * Get PingClaw config directory
  */
 export function getPingClawConfigDir(): string {
-  return join(homedir(), '.pingclaw');
+  return process.env.CLAWX_USER_DATA_DIR?.trim() || join(getExpandHomeDir(), '.pingclaw');
 }
+
+export { isPortableMode, getPortableRuntime, getPortableRuntimeInfo } from './portable-runtime';
 
 /**
  * Get PingClaw logs directory

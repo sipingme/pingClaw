@@ -3,6 +3,7 @@ import { applyProxySettings } from '../../main/proxy';
 import { syncLaunchAtStartupSettingFromStore } from '../../main/launch-at-startup';
 import { syncProxyConfigToOpenClaw } from '../../utils/openclaw-proxy';
 import { getAllSettings, getSetting, resetSettings, setSetting, type AppSettings } from '../../utils/store';
+import { isPortableMode } from '../../utils/paths';
 import type { HostApiContext } from '../context';
 import { parseJsonBody, sendJson } from '../route-utils';
 
@@ -30,6 +31,16 @@ function patchTouchesLaunchAtStartup(patch: Partial<AppSettings>): boolean {
   return Object.prototype.hasOwnProperty.call(patch, 'launchAtStartup');
 }
 
+function normalizePortableSettingValue<K extends keyof AppSettings>(
+  key: K,
+  value: AppSettings[K],
+): AppSettings[K] {
+  if (isPortableMode() && key === 'launchAtStartup') {
+    return false as AppSettings[K];
+  }
+  return value;
+}
+
 export async function handleSettingsRoutes(
   req: IncomingMessage,
   res: ServerResponse,
@@ -46,7 +57,7 @@ export async function handleSettingsRoutes(
       const patch = await parseJsonBody<Partial<AppSettings>>(req);
       const entries = Object.entries(patch) as Array<[keyof AppSettings, AppSettings[keyof AppSettings]]>;
       for (const [key, value] of entries) {
-        await setSetting(key, value);
+        await setSetting(key, normalizePortableSettingValue(key, value));
       }
       if (patchTouchesProxy(patch)) {
         await handleProxySettingsChange(ctx);
@@ -75,7 +86,7 @@ export async function handleSettingsRoutes(
     const key = url.pathname.slice('/api/settings/'.length) as keyof AppSettings;
     try {
       const body = await parseJsonBody<{ value: AppSettings[keyof AppSettings] }>(req);
-      await setSetting(key, body.value);
+      await setSetting(key, normalizePortableSettingValue(key, body.value));
       if (
         key === 'proxyEnabled' ||
         key === 'proxyServer' ||

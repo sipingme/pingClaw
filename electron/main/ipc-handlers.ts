@@ -4,7 +4,6 @@
  */
 import { ipcMain, BrowserWindow, shell, dialog, app, nativeImage } from 'electron';
 import { existsSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { join, extname, basename, resolve, sep, relative } from 'node:path';
 import crypto from 'node:crypto';
 import { GatewayManager } from '../gateway/manager';
@@ -12,7 +11,7 @@ import { ClawHubService, ClawHubSearchParams, ClawHubInstallParams, ClawHubUnins
 import {
   type ProviderConfig,
 } from '../utils/secure-storage';
-import { getOpenClawStatus, getOpenClawDir, getOpenClawConfigDir, getOpenClawSkillsDir, ensureDir, expandPath } from '../utils/paths';
+import { getOpenClawStatus, getOpenClawDir, getOpenClawConfigDir, getOpenClawSkillsDir, getExpandHomeDir, ensureDir, expandPath, isPortableMode } from '../utils/paths';
 import { getOpenClawCliCommand } from '../utils/openclaw-cli';
 import { getAllSettings, getSetting, resetSettings, setSetting, type AppSettings } from '../utils/store';
 import {
@@ -2084,9 +2083,10 @@ function registerProviderHandlers(gatewayManager: GatewayManager): void {
  * Shell-related IPC handlers
  */
 function expandShellPath(input: string): string {
-  if (input === '~') return homedir();
+  const home = getExpandHomeDir();
+  if (input === '~') return home;
   if (input.startsWith(`~${sep}`) || input.startsWith('~/') || input.startsWith('~\\')) {
-    return join(homedir(), input.slice(2));
+    return join(home, input.slice(2));
   }
   return input;
 }
@@ -2241,7 +2241,8 @@ function registerSettingsHandlers(gatewayManager: GatewayManager): void {
   });
 
   ipcMain.handle('settings:set', async (_, key: keyof AppSettings, value: AppSettings[keyof AppSettings]) => {
-    await setSetting(key, value as never);
+    const nextValue = (isPortableMode() && key === 'launchAtStartup') ? false : value;
+    await setSetting(key, nextValue as never);
 
     if (
       key === 'proxyEnabled' ||
@@ -2263,7 +2264,8 @@ function registerSettingsHandlers(gatewayManager: GatewayManager): void {
   ipcMain.handle('settings:setMany', async (_, patch: Partial<AppSettings>) => {
     const entries = Object.entries(patch) as Array<[keyof AppSettings, AppSettings[keyof AppSettings]]>;
     for (const [key, value] of entries) {
-      await setSetting(key, value as never);
+      const nextValue = (isPortableMode() && key === 'launchAtStartup') ? false : value;
+      await setSetting(key, nextValue as never);
     }
 
     if (entries.some(([key]) =>
@@ -2380,7 +2382,14 @@ function mimeToExt(mimeType: string): string {
   return '';
 }
 
-const OUTBOUND_DIR = join(homedir(), '.openclaw', 'media', 'outbound');
+
+function getOutboundDir(): string {
+  return join(getOpenClawConfigDir(), 'media', 'outbound');
+}
+
+function getOutgoingRecordPath(attachmentId: string): string {
+  return join(getOpenClawConfigDir(), 'media', 'outgoing', 'records', `${attachmentId}.json`);
+}
 const DIRECTORY_MIME_TYPE = 'application/x-directory';
 
 /**
@@ -2419,7 +2428,7 @@ function registerFileHandlers(): void {
   // Stage files from real disk paths (used with dialog:open)
   ipcMain.handle('file:stage', async (_, filePaths: string[]) => {
     const fsP = await import('fs/promises');
-    await fsP.mkdir(OUTBOUND_DIR, { recursive: true });
+    await fsP.mkdir(getOutboundDir(), { recursive: true });
 
     const results = [];
     for (const filePath of filePaths) {
@@ -2439,7 +2448,7 @@ function registerFileHandlers(): void {
       }
 
       const ext = extname(filePath);
-      const stagedPath = join(OUTBOUND_DIR, `${id}${ext}`);
+      const stagedPath = join(getOutboundDir(), `${id}${ext}`);
       await fsP.copyFile(filePath, stagedPath);
 
       const s = await fsP.stat(stagedPath);
@@ -2461,11 +2470,11 @@ function registerFileHandlers(): void {
     mimeType: string;
   }) => {
     const fsP = await import('fs/promises');
-    await fsP.mkdir(OUTBOUND_DIR, { recursive: true });
+    await fsP.mkdir(getOutboundDir(), { recursive: true });
 
     const id = crypto.randomUUID();
     const ext = extname(payload.fileName) || mimeToExt(payload.mimeType);
-    const stagedPath = join(OUTBOUND_DIR, `${id}${ext}`);
+    const stagedPath = join(getOutboundDir(), `${id}${ext}`);
     const buffer = Buffer.from(payload.base64, 'base64');
     await fsP.writeFile(stagedPath, buffer);
 
@@ -2494,7 +2503,7 @@ function registerFileHandlers(): void {
         ? params.defaultFileName.split('.').pop()!
         : (params.mimeType?.split('/')[1] || 'png');
       const result = await dialog.showSaveDialog({
-        defaultPath: join(homedir(), 'Downloads', params.defaultFileName),
+        defaultPath: join(getExpandHomeDir(), 'Downloads', params.defaultFileName),
         filters: [
           { name: 'Images', extensions: [ext, 'png', 'jpg', 'jpeg', 'webp', 'gif'] },
           { name: 'All Files', extensions: ['*'] },
@@ -2590,7 +2599,7 @@ async function resolveOutgoingMediaUrl(
     if (!m) return null;
     const attachmentId = decodeURIComponent(m[1]);
     if (!/^[A-Za-z0-9._-]+$/.test(attachmentId)) return null;
-    const recordPath = join(homedir(), '.openclaw', 'media', 'outgoing', 'records', `${attachmentId}.json`);
+    const recordPath = getOutgoingRecordPath(attachmentId);
     const fsP = await import('fs/promises');
     const raw = await fsP.readFile(recordPath, 'utf8');
     const record = JSON.parse(raw) as {
@@ -2845,14 +2854,14 @@ function isPathInside(child: string, parent: string): boolean {
  */
 function getFilePreviewWriteRoots(): string[] {
   const roots: string[] = [];
-  const openclawDir = join(homedir(), '.openclaw');
+  const openclawDir = getOpenClawConfigDir();
   roots.push(resolve(openclawDir));
   try {
     roots.push(resolve(app.getPath('userData')));
   } catch {
     // ignore — userData should always exist
   }
-  roots.push(resolve(OUTBOUND_DIR));
+  roots.push(resolve(getOutboundDir()));
   return roots;
 }
 

@@ -31,7 +31,27 @@
             "title": "All Set",
             "description": "Setup is done — you can start chatting",
             "label": "Done"
+        },
+        "import": {
+            "title": "Import Existing Data",
+            "description": "Copy OpenClaw data from this computer onto your portable drive",
+            "label": "Import"
         }
+    },
+    "import": {
+        "title": "Import from this computer?",
+        "subtitle": "We found an existing OpenClaw folder on this Mac or PC. You can copy it to your portable drive so agents, skills, and sessions come with you.",
+        "hostPath": "Source on this computer",
+        "portablePath": "Destination on USB",
+        "fileCount": "{{count}} items detected",
+        "importAction": "Copy to USB",
+        "skipAction": "Start fresh",
+        "importing": "Copying OpenClaw data…",
+        "importingHint": "Keep the app open. This may take a minute on slower USB drives.",
+        "successTitle": "Import complete",
+        "successBody": "Your OpenClaw data is now on the portable drive.",
+        "errorTitle": "Import failed",
+        "continueSetup": "Continue setup"
     },
     "welcome": {
         "title": "Welcome to PingClaw",

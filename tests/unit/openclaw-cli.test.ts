@@ -38,6 +38,7 @@ vi.mock('electron', () => ({
 vi.mock('@electron/utils/paths', () => ({
   getOpenClawDir: () => '/tmp/openclaw',
   getOpenClawEntryPath: () => 'C:\\Program Files\\PingClaw\\resources\\openclaw\\openclaw.mjs',
+  isPortableMode: () => false,
 }));
 
 describe('getOpenClawCliCommand (Windows packaged)', () => {

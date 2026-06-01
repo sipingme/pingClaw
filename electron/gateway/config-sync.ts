@@ -1,7 +1,6 @@
 import { app } from 'electron';
 import path from 'path';
 import { existsSync, readFileSync, mkdirSync, readdirSync, rmSync, symlinkSync } from 'fs';
-import { homedir } from 'os';
 import { join } from 'path';
 
 function fsPath(filePath: string): string {
@@ -20,11 +19,14 @@ import { getApiKey, getDefaultProvider, getProvider } from '../utils/secure-stor
 import { getProviderEnvVar, getKeyableProviderTypes } from '../utils/provider-registry';
 import {
   getOpenClawConfigDir,
+  getOpenClawConfigPath,
+  getOpenClawExtensionsDir,
   getOpenClawDir,
   getOpenClawEntryPath,
   getOpenClawResolvedDir,
   getOpenClawSkillsDir,
   isOpenClawPresent,
+  isPortableMode,
 } from '../utils/paths';
 import { getUvMirrorEnv } from '../utils/uv-env';
 import { cleanupDanglingWeChatPluginState, listConfiguredChannelsFromConfig, readOpenClawConfig } from '../utils/channel-config';
@@ -88,7 +90,7 @@ const BUILTIN_CHANNEL_EXTENSIONS = ['discord', 'telegram', 'qqbot'];
 
 function cleanupStaleBuiltInExtensions(): void {
   for (const ext of BUILTIN_CHANNEL_EXTENSIONS) {
-    const extDir = join(homedir(), '.openclaw', 'extensions', ext);
+    const extDir = join(getOpenClawExtensionsDir(), ext);
     if (existsSync(fsPath(extDir))) {
       logger.info(`[plugin] Removing stale built-in extension copy: ${ext}`);
       try {
@@ -148,7 +150,7 @@ function ensureConfiguredPluginsUpgraded(configuredChannels: string[]): boolean 
     if (!pluginInfo) continue;
     const { dirName, npmName } = pluginInfo;
 
-    const targetDir = join(homedir(), '.openclaw', 'extensions', dirName);
+    const targetDir = join(getOpenClawExtensionsDir(), dirName);
     const targetManifest = join(targetDir, 'openclaw.plugin.json');
     const isInstalled = existsSync(fsPath(targetManifest));
     const installedVersion = isInstalled ? readPluginVersion(join(targetDir, 'package.json')) : null;
@@ -163,7 +165,7 @@ function ensureConfiguredPluginsUpgraded(configuredChannels: string[]): boolean 
       if (!isInstalled || (sourceVersion && installedVersion && sourceVersion !== installedVersion)) {
         logger.info(`[plugin] ${isInstalled ? 'Auto-upgrading' : 'Installing'} ${channelType} plugin${isInstalled ? `: ${installedVersion} → ${sourceVersion}` : `: ${sourceVersion}`} (bundled)`);
         try {
-          mkdirSync(fsPath(join(homedir(), '.openclaw', 'extensions')), { recursive: true });
+          mkdirSync(fsPath(join(getOpenClawExtensionsDir())), { recursive: true });
           rmSync(fsPath(targetDir), { recursive: true, force: true });
           cpSyncSafe(bundledDir, targetDir);
           fixupPluginManifest(targetDir);
@@ -194,7 +196,7 @@ function ensureConfiguredPluginsUpgraded(configuredChannels: string[]): boolean 
       logger.info(`[plugin] ${isInstalled ? 'Auto-upgrading' : 'Installing'} ${channelType} plugin${isInstalled ? `: ${installedVersion} → ${sourceVersion}` : `: ${sourceVersion}`} (dev/node_modules)`);
 
       try {
-        mkdirSync(fsPath(join(homedir(), '.openclaw', 'extensions')), { recursive: true });
+        mkdirSync(fsPath(join(getOpenClawExtensionsDir())), { recursive: true });
         copyPluginFromNodeModules(npmPkgPath, targetDir, npmName);
         fixupPluginManifest(targetDir);
       } catch (err) {
@@ -220,7 +222,7 @@ function cleanupUnconfiguredChannelPlugins(configuredChannels: string[]): boolea
     if (configuredSet.has(channelType)) continue;
 
     const { dirName } = pluginInfo;
-    const targetDir = join(homedir(), '.openclaw', 'extensions', dirName);
+    const targetDir = join(getOpenClawExtensionsDir(), dirName);
     if (!existsSync(fsPath(targetDir))) continue;
 
     logger.info(`[plugin] Removing unconfigured channel plugin: ${channelType} (${dirName})`);
@@ -261,7 +263,7 @@ function buildPluginMaintenanceCacheKey(openclawDir: string, configuredChannels:
     openclawDir,
     cwd: process.cwd(),
     configuredChannels: [...configuredChannels].sort(),
-    extensionsDir: directoryChildrenSignature(join(homedir(), '.openclaw', 'extensions')),
+    extensionsDir: directoryChildrenSignature(join(getOpenClawExtensionsDir())),
     sourceSignatures: buildPluginSourceSignatures(configuredChannels),
   });
 }
@@ -608,6 +610,15 @@ export async function prepareGatewayLaunchContext(port: number): Promise<Gateway
     OPENCLAW_SKIP_CHANNELS: skipChannels ? '1' : '',
     CLAWDBOT_SKIP_CHANNELS: skipChannels ? '1' : '',
     OPENCLAW_NO_RESPAWN: '1',
+    ...(isPortableMode()
+      ? {
+        OPENCLAW_STATE_DIR: getOpenClawConfigDir(),
+        OPENCLAW_CONFIG_PATH: getOpenClawConfigPath(),
+        CLAWX_USER_DATA_DIR: process.env.CLAWX_USER_DATA_DIR,
+        PINGCLAW_PORTABLE: '1',
+        PINGCLAW_PORTABLE_ROOT: process.env.PINGCLAW_PORTABLE_ROOT,
+      }
+      : {}),
   };
 
   // Ensure extension-specific packages (e.g. grammy from the telegram

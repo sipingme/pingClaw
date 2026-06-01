@@ -31,7 +31,27 @@
             "title": "一切就绪",
             "description": "引导完成，可以开始对话了",
             "label": "一切就绪"
+        },
+        "import": {
+            "title": "导入已有数据",
+            "description": "将本机 OpenClaw 数据复制到便携盘",
+            "label": "导入"
         }
+    },
+    "import": {
+        "title": "是否从本机导入？",
+        "subtitle": "检测到本机已有 OpenClaw 数据。可复制到便携盘，带走智能体、技能与会话。",
+        "hostPath": "本机来源",
+        "portablePath": "便携盘目标",
+        "fileCount": "检测到 {{count}} 项",
+        "importAction": "复制到便携盘",
+        "skipAction": "全新开始",
+        "importing": "正在复制 OpenClaw 数据…",
+        "importingHint": "请保持应用打开。较慢的 U 盘可能需要一分钟。",
+        "successTitle": "导入完成",
+        "successBody": "OpenClaw 数据已保存到便携盘。",
+        "errorTitle": "导入失败",
+        "continueSetup": "继续引导"
     },
     "welcome": {
         "title": "欢迎使用 PingClaw",

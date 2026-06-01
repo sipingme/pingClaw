@@ -2,7 +2,8 @@ import { app } from 'electron';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { logger } from '../utils/logger';
-import { getSetting } from '../utils/store';
+import { isPortableMode } from '../utils/paths';
+import { getSetting, setSetting } from '../utils/store';
 
 const LINUX_AUTOSTART_FILE = join('.config', 'autostart', 'pingclaw.desktop');
 
@@ -61,25 +62,50 @@ function applyWindowsOrMacLaunchAtStartup(enabled: boolean): void {
   logger.info(`Launch-at-startup ${enabled ? 'enabled' : 'disabled'} via login items`);
 }
 
+async function applyLaunchAtStartupSettingInternal(enabled: boolean): Promise<void> {
+  if (process.platform === 'linux') {
+    await applyLinuxLaunchAtStartup(enabled);
+    return;
+  }
+
+  if (process.platform === 'win32' || process.platform === 'darwin') {
+    applyWindowsOrMacLaunchAtStartup(enabled);
+    return;
+  }
+
+  logger.warn(`Launch-at-startup unsupported on platform: ${process.platform}`);
+}
+
 export async function applyLaunchAtStartupSetting(enabled: boolean): Promise<void> {
+  if (isPortableMode()) {
+    if (enabled) {
+      logger.info('Launch-at-startup ignored in portable mode');
+    }
+    try {
+      await applyLaunchAtStartupSettingInternal(false);
+    } catch (error) {
+      logger.error('Failed to disable launch-at-startup in portable mode:', error);
+    }
+    return;
+  }
+
   try {
-    if (process.platform === 'linux') {
-      await applyLinuxLaunchAtStartup(enabled);
-      return;
-    }
-
-    if (process.platform === 'win32' || process.platform === 'darwin') {
-      applyWindowsOrMacLaunchAtStartup(enabled);
-      return;
-    }
-
-    logger.warn(`Launch-at-startup unsupported on platform: ${process.platform}`);
+    await applyLaunchAtStartupSettingInternal(enabled);
   } catch (error) {
     logger.error(`Failed to apply launch-at-startup=${enabled}:`, error);
   }
 }
 
 export async function syncLaunchAtStartupSettingFromStore(): Promise<void> {
+  if (isPortableMode()) {
+    const launchAtStartup = await getSetting('launchAtStartup');
+    if (launchAtStartup) {
+      await setSetting('launchAtStartup', false);
+    }
+    await applyLaunchAtStartupSetting(false);
+    return;
+  }
+
   const launchAtStartup = await getSetting('launchAtStartup');
   await applyLaunchAtStartupSetting(Boolean(launchAtStartup));
 }

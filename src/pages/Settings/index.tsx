@@ -53,6 +53,17 @@ import {
   STATUS_SUCCESS,
   STATUS_SUCCESS_DOT,
 } from '@/lib/ui-patterns';
+type PortableInfo = {
+  enabled: boolean;
+  root?: string;
+  openclawStateDir?: string;
+};
+
+type PortableImportStatus = {
+  canImportFromHost: boolean;
+  hostFileCount: number;
+};
+
 type ControlUiInfo = {
   url: string;
   token: string;
@@ -191,9 +202,12 @@ export function Settings() {
   const [wsDiagnosticEnabled, setWsDiagnosticEnabled] = useState(false);
   const [showTelemetryViewer, setShowTelemetryViewer] = useState(false);
   const [telemetryEntries, setTelemetryEntries] = useState<UiTelemetryEntry[]>([]);
+  const [portableInfo, setPortableInfo] = useState<PortableInfo>({ enabled: false });
+  const [portableImportStatus, setPortableImportStatus] = useState<PortableImportStatus | null>(null);
+  const [importingPortableData, setImportingPortableData] = useState(false);
 
   const isWindows = window.electron.platform === 'win32';
-  const showCliTools = true;
+  const showCliTools = !portableInfo.enabled;
   const [showLogs, setShowLogs] = useState(false);
   const [logContent, setLogContent] = useState('');
   const [doctorRunningMode, setDoctorRunningMode] = useState<'diagnose' | 'fix' | null>(null);
@@ -323,6 +337,56 @@ export function Settings() {
       toast.success(t('developer.tokenCopied'));
     } catch (error) {
       toast.error(`Failed to copy token: ${String(error)}`);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void hostApiFetch<PortableInfo>('/api/app/portable')
+      .then((info) => {
+        if (!cancelled) {
+          setPortableInfo(info);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPortableInfo({ enabled: false });
+        }
+      });
+
+    void hostApiFetch<PortableImportStatus>('/api/app/portable/import-status')
+      .then((status) => {
+        if (!cancelled) {
+          setPortableImportStatus(status);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPortableImportStatus(null);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  const handlePortableImport = async () => {
+    setImportingPortableData(true);
+    try {
+      const result = await hostApiFetch<{ success: boolean; error?: string }>('/api/app/portable/import', {
+        method: 'POST',
+      });
+      if (result.success) {
+        toast.success(t('portable.importSuccess'));
+        setPortableImportStatus(null);
+        await restartGateway();
+        return;
+      }
+      toast.error(t('portable.importFailed', { error: result.error || 'Unknown error' }));
+    } catch (error) {
+      toast.error(t('portable.importFailed', { error: String(error) }));
+    } finally {
+      setImportingPortableData(false);
     }
   };
 
@@ -580,6 +644,40 @@ export function Settings() {
           </div>
         </div>
 
+        {portableInfo.enabled && (
+          <div
+            data-testid="settings-portable-banner"
+            className="mb-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="h-6 rounded-md border-primary/30 bg-primary/10 px-2 text-2xs text-primary">
+                {t('portable.badge')}
+              </Badge>
+              <p className="text-xs text-foreground/90">{t('portable.banner')}</p>
+            </div>
+            {portableInfo.openclawStateDir && (
+              <p className="mt-2 break-all font-mono text-2xs text-muted-foreground">
+                {t('portable.dataDir')}: {portableInfo.openclawStateDir}
+              </p>
+            )}
+            {portableImportStatus?.canImportFromHost && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <p className="text-xs text-foreground/85">
+                  {t('portable.importOffer', { count: portableImportStatus.hostFileCount })}
+                </p>
+                <Button
+                  size="sm"
+                  className="h-7 px-2.5 text-2xs"
+                  onClick={handlePortableImport}
+                  disabled={importingPortableData}
+                >
+                  {importingPortableData ? t('portable.importImporting') : t('portable.importAction')}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-6">
           <SettingsSection
             title={t('appearance.title')}
@@ -623,14 +721,16 @@ export function Settings() {
               </SettingsOptionRow>
             </div>
 
-            <SettingsGroup>
-              <SettingsRow
-                label={t('appearance.launchAtStartup')}
-                description={t('appearance.launchAtStartupDesc')}
-              >
-                <Switch size="sm" checked={launchAtStartup} onCheckedChange={setLaunchAtStartup} />
-              </SettingsRow>
-            </SettingsGroup>
+            {!portableInfo.enabled && (
+              <SettingsGroup>
+                <SettingsRow
+                  label={t('appearance.launchAtStartup')}
+                  description={t('appearance.launchAtStartupDesc')}
+                >
+                  <Switch size="sm" checked={launchAtStartup} onCheckedChange={setLaunchAtStartup} />
+                </SettingsRow>
+              </SettingsGroup>
+            )}
           </SettingsSection>
 
           <SettingsSection

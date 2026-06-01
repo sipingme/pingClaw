@@ -7,8 +7,7 @@
 import { access, mkdir, readFile, writeFile, readdir, stat, rm } from 'fs/promises';
 import { constants } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
-import { getOpenClawResolvedDir } from './paths';
+import { getOpenClawResolvedDir, getOpenClawConfigDir, getOpenClawConfigPath, getOpenClawExtensionsDir } from './paths';
 import * as logger from './logger';
 import { proxyAwareFetch } from './proxy-fetch';
 import { withConfigLock } from './config-mutex';
@@ -19,8 +18,6 @@ import {
     toOpenClawChannelType,
 } from './channel-alias';
 
-const OPENCLAW_DIR = join(homedir(), '.openclaw');
-const CONFIG_FILE = join(OPENCLAW_DIR, 'openclaw.json');
 const WECOM_PLUGIN_ID = 'wecom';
 // Note: QQBot is a built-in channel since OpenClaw 3.31 — no plugin ID needed.
 const WECHAT_PLUGIN_ID = OPENCLAW_WECHAT_CHANNEL_TYPE;
@@ -55,11 +52,11 @@ const DISCORD_GUILD_CHANNEL_KEYS_TO_KEEP = new Set([
 ]);
 const DISCORD_CHANNEL_ALLOW_FLAG_KEYS = new Set(['allow']);
 const CHANNEL_TOP_LEVEL_KEYS_TO_KEEP = new Set(['accounts', 'defaultAccount', 'enabled']);
-const WECHAT_STATE_DIR = join(OPENCLAW_DIR, WECHAT_PLUGIN_ID);
+const WECHAT_STATE_DIR = join(getOpenClawConfigDir(), WECHAT_PLUGIN_ID);
 const WECHAT_ACCOUNT_INDEX_FILE = join(WECHAT_STATE_DIR, 'accounts.json');
 const WECHAT_ACCOUNTS_DIR = join(WECHAT_STATE_DIR, 'accounts');
-const LEGACY_WECHAT_CREDENTIALS_DIR = join(OPENCLAW_DIR, 'credentials', WECHAT_PLUGIN_ID);
-const LEGACY_WECHAT_SYNC_DIR = join(OPENCLAW_DIR, 'agents', 'default', 'sessions', '.openclaw-weixin-sync');
+const LEGACY_WECHAT_CREDENTIALS_DIR = join(getOpenClawConfigDir(), 'credentials', WECHAT_PLUGIN_ID);
+const LEGACY_WECHAT_SYNC_DIR = join(getOpenClawConfigDir(), 'agents', 'default', 'sessions', '.openclaw-weixin-sync');
 
 // Channels that are managed as plugins (config goes under plugins.entries, not channels)
 const PLUGIN_CHANNELS: string[] = ['discord', 'qqbot', 'whatsapp'];
@@ -187,7 +184,7 @@ function normalizeCredentialValue(value: string): string {
 }
 
 async function resolveFeishuPluginId(): Promise<string> {
-    const extensionRoot = join(homedir(), '.openclaw', 'extensions');
+    const extensionRoot = getOpenClawExtensionsDir();
     for (const dirName of FEISHU_PLUGIN_ID_CANDIDATES) {
         const manifestPath = join(extensionRoot, dirName, 'openclaw.plugin.json');
         try {
@@ -456,20 +453,20 @@ export interface OpenClawConfig {
 // ── Config I/O ───────────────────────────────────────────────────
 
 async function ensureConfigDir(): Promise<void> {
-    if (!(await fileExists(OPENCLAW_DIR))) {
-        await mkdir(OPENCLAW_DIR, { recursive: true });
+    if (!(await fileExists(getOpenClawConfigDir()))) {
+        await mkdir(getOpenClawConfigDir(), { recursive: true });
     }
 }
 
 export async function readOpenClawConfig(): Promise<OpenClawConfig> {
     await ensureConfigDir();
 
-    if (!(await fileExists(CONFIG_FILE))) {
+    if (!(await fileExists(getOpenClawConfigPath()))) {
         return {};
     }
 
     try {
-        const content = await readFile(CONFIG_FILE, 'utf-8');
+        const content = await readFile(getOpenClawConfigPath(), 'utf-8');
         return JSON.parse(content) as OpenClawConfig;
     } catch (error) {
         logger.error('Failed to read OpenClaw config', error);
@@ -490,7 +487,7 @@ export async function writeOpenClawConfig(config: OpenClawConfig): Promise<void>
         commands.restart = true;
         config.commands = commands;
 
-        await writeFile(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
+        await writeFile(getOpenClawConfigPath(), JSON.stringify(config, null, 2), 'utf-8');
     } catch (error) {
         logger.error('Failed to write OpenClaw config', error);
         console.error('Failed to write OpenClaw config:', error);
@@ -924,7 +921,7 @@ export async function saveChannelConfig(
         logger.info('Channel config saved', {
             channelType: resolvedChannelType,
             accountId: resolvedAccountId,
-            configFile: CONFIG_FILE,
+            configFile: getOpenClawConfigPath(),
             rawKeys: Object.keys(config),
             transformedKeys: Object.keys(transformedConfig),
         });
@@ -1124,7 +1121,7 @@ export async function deleteChannelConfig(channelType: string): Promise<void> {
 
         if (resolvedChannelType === 'whatsapp') {
             try {
-                const whatsappDir = join(homedir(), '.openclaw', 'credentials', 'whatsapp');
+                const whatsappDir = join(getOpenClawConfigDir(), 'credentials', 'whatsapp');
                 if (await fileExists(whatsappDir)) {
                     await rm(whatsappDir, { recursive: true, force: true });
                     console.log('Deleted WhatsApp credentials directory');
@@ -1158,7 +1155,7 @@ export async function listConfiguredChannelsFromConfig(config: OpenClawConfig): 
     }
 
     try {
-        const whatsappDir = join(homedir(), '.openclaw', 'credentials', 'whatsapp');
+        const whatsappDir = join(getOpenClawConfigDir(), 'credentials', 'whatsapp');
         if (await fileExists(whatsappDir)) {
             const entries = await readdir(whatsappDir);
             const hasSession = await (async () => {

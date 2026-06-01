@@ -2,6 +2,7 @@
  * Electron Main Process Entry
  * Manages window creation, system tray, and IPC handlers
  */
+import './bootstrap-portable';
 import { app, BrowserWindow, nativeImage, session, shell } from 'electron';
 import type { Server } from 'node:http';
 import { join } from 'path';
@@ -54,13 +55,14 @@ import { browserOAuthManager } from '../utils/browser-oauth';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { syncAllProviderAuthToRuntime } from '../services/providers/provider-runtime-sync';
 import { createNoopBrowserWindow } from './noop-window';
+import { isPortableMode, getPortableRuntime } from '../utils/paths';
 
 const WINDOWS_APP_USER_MODEL_ID = 'app.pingclaw.desktop';
 const isE2EMode = process.env.CLAWX_E2E === '1';
 const isWebDevMode = process.env.CLAWX_WEB_DEV === '1';
 const requestedUserDataDir = process.env.CLAWX_USER_DATA_DIR?.trim();
 
-if (isE2EMode && requestedUserDataDir) {
+if (isE2EMode && requestedUserDataDir && !isPortableMode()) {
   app.setPath('userData', requestedUserDataDir);
 }
 
@@ -302,6 +304,12 @@ async function initialize(): Promise<void> {
 
     // Apply persisted proxy settings before creating windows or network requests.
     await applyProxySettings();
+
+    if (isPortableMode()) {
+      const runtime = getPortableRuntime();
+      logger.info(`Running in portable mode (root=${runtime?.root ?? 'unknown'})`);
+    }
+
     await syncLaunchAtStartupSettingFromStore();
   } else {
     logger.info('Running in E2E mode: startup side effects minimized');
@@ -529,7 +537,7 @@ async function initialize(): Promise<void> {
   }
 
   // Auto-install openclaw CLI and shell completions (non-blocking).
-  if (!isE2EMode) {
+  if (!isE2EMode && !isPortableMode()) {
     void autoInstallCliIfNeeded((installedPath) => {
       mainWindow?.webContents.send('openclaw:cli-installed', installedPath);
     }).then(() => {

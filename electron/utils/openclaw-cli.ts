@@ -14,7 +14,7 @@ import {
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
-import { getOpenClawDir, getOpenClawEntryPath } from './paths';
+import { getOpenClawDir, getOpenClawEntryPath, isPortableMode } from './paths';
 import { logger } from './logger';
 
 // ── Quoting helpers ──────────────────────────────────────────────────────────
@@ -129,6 +129,10 @@ function getCliTargetPath(): string {
 export async function installOpenClawCli(): Promise<{
   success: boolean; path?: string; error?: string;
 }> {
+  if (isPortableMode()) {
+    return { success: false, error: 'CLI install is disabled in portable mode.' };
+  }
+
   const platform = process.platform;
 
   if (platform === 'win32') {
@@ -285,6 +289,7 @@ function ensureLocalBinInPath(): void {
 export async function autoInstallCliIfNeeded(
   notify?: (path: string) => void,
 ): Promise<void> {
+  if (isPortableMode()) return;
   if (!app.isPackaged) return;
   if (process.platform === 'win32') {
     try {
@@ -344,6 +349,7 @@ function getNodeExecForCli(): string {
 }
 
 export function generateCompletionCache(): void {
+  if (isPortableMode()) return;
   if (!app.isPackaged) return;
 
   const entryPath = getOpenClawEntryPath();
@@ -377,6 +383,7 @@ export function generateCompletionCache(): void {
 }
 
 export function installCompletionToProfile(): void {
+  if (isPortableMode()) return;
   if (!app.isPackaged) return;
   if (process.platform === 'win32') return;
 

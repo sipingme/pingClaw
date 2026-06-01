@@ -12,6 +12,16 @@
     "launchAtStartup": "开机自动启动",
     "launchAtStartupDesc": "登录系统后自动启动 PingClaw"
   },
+  "portable": {
+    "badge": "便携模式",
+    "banner": "所有数据保存在当前 U 盘，已禁用本机开机启动和 CLI 安装到 ~/.local/bin。",
+    "dataDir": "OpenClaw 数据目录",
+    "importOffer": "检测到本机 OpenClaw 数据（{{count}} 项）。",
+    "importAction": "导入到便携盘",
+    "importImporting": "导入中…",
+    "importSuccess": "OpenClaw 数据已复制到便携盘。",
+    "importFailed": "导入失败：{{error}}"
+  },
   "aiProviders": {
     "title": "AI 模型提供商",
     "description": "配置 AI 模型提供商和 API 密钥",

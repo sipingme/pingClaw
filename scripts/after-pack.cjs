@@ -957,4 +957,14 @@ exports.default = async function afterPack(context) {
       console.log('[after-pack] ⚡ NSIS extract template ready (direct 7z to $INSTDIR).');
     }
   }
+
+  if (process.env.PINGCLAW_PORTABLE_BUILD === '1') {
+    const markerSrc = join(__dirname, '..', 'resources', 'portable.marker');
+    const markerDest = join(resourcesDir, 'portable.marker');
+    if (!existsSync(markerSrc)) {
+      throw new Error('[after-pack] resources/portable.marker missing for portable build');
+    }
+    cpSync(markerSrc, markerDest);
+    console.log(`[after-pack] ✅ portable.marker copied to ${markerDest}`);
+  }
 };

@@ -125,6 +125,10 @@ jobs:
           echo "File descriptor limit: $(ulimit -n)"
           pnpm run package:mac -- -c.mac.notarize=false
 
+      - name: Assemble macOS portable USB bundles
+        if: matrix.platform == 'mac' && steps.channel.outputs.is_stable == 'false'
+        run: pnpm run package:portable:mac
+
       - name: Build macOS (signed stable)
         if: matrix.platform == 'mac' && steps.channel.outputs.is_stable == 'true'
         env:
@@ -139,12 +143,23 @@ jobs:
           echo "File descriptor limit: $(ulimit -n)"
           pnpm run package:mac
 
+      - name: Assemble macOS portable USB bundles
+        if: matrix.platform == 'mac' && steps.channel.outputs.is_stable == 'true'
+        run: pnpm run package:portable:mac
+
       # Windows specific steps
       - name: Build Windows
         if: matrix.platform == 'win'
         run: pnpm run package:win
 
-      # Detect release channel to skip code signing for alpha/beta builds
+      - name: Build Windows portable
+        if: matrix.platform == 'win'
+        env:
+          PINGCLAW_PORTABLE_BUILD: '1'
+        run: |
+          node scripts/run-electron-builder.mjs --win --config electron-builder.portable.yml --publish never
+          node scripts/assemble-portable.mjs win
+
       - name: Validate unsigned Windows artifacts before SignPath
         if: matrix.platform == 'win' && steps.channel.outputs.is_stable == 'true'
         shell: pwsh
@@ -362,6 +377,11 @@ jobs:
             #### Windows
             - **Installer (x64)**: `PingClaw-*-win-x64.exe`
             - **Installer (ARM64)**: `PingClaw-*-win-arm64.exe`
+            - **Portable USB (x64)**: `PingClawPortable-*-win-x64.exe` or `PingClawPortable-*-win-x64.zip`
+            
+            #### Portable (macOS / Windows)
+            - **USB bundle (Apple Silicon)**: `PingClawPortable-*-mac-arm64.zip`
+            - **USB bundle (Intel)**: `PingClawPortable-*-mac-x64.zip`
             
             #### Linux
             - **AppImage (x64)**: `PingClaw-*-linux-x86_64.AppImage` (Universal format, recommended)

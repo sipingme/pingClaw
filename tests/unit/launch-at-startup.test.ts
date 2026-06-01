@@ -40,8 +40,11 @@ describe('launch-at-startup integration', () => {
     await rm(testHome, { recursive: true, force: true });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     Object.defineProperty(process, 'platform', { value: originalPlatform, writable: true });
+    delete process.env.PINGCLAW_PORTABLE;
+    delete process.env.PINGCLAW_PORTABLE_ROOT;
+    await rm(testHome, { recursive: true, force: true });
   });
 
   it('uses login item settings on Windows', async () => {
@@ -87,5 +90,18 @@ describe('launch-at-startup integration', () => {
     const { applyLaunchAtStartupSetting } = await import('@electron/main/launch-at-startup');
 
     await expect(applyLaunchAtStartupSetting(true)).resolves.toBeUndefined();
+  });
+
+  it('disables login items in portable mode even when enabled is requested', async () => {
+    process.env.PINGCLAW_PORTABLE = '1';
+    process.env.PINGCLAW_PORTABLE_ROOT = testHome;
+    setPlatform('darwin');
+    const { applyLaunchAtStartupSetting } = await import('@electron/main/launch-at-startup');
+
+    await applyLaunchAtStartupSetting(true);
+    expect(setLoginItemSettingsMock).toHaveBeenCalledWith({
+      openAtLogin: false,
+      openAsHidden: false,
+    });
   });
 });

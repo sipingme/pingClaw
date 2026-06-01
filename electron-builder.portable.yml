@@ -1,0 +1,11 @@
+extends: electron-builder.yml
+
+artifactName: PingClawPortable-${version}-win-${arch}.${ext}
+
+win:
+  target:
+    - target: portable
+      arch: x64
+
+portable:
+  artifactName: PingClawPortable-${version}-win-${arch}.${ext}

@@ -56,6 +56,9 @@ export interface AppSettings {
   selectedBundles: string[];
   enabledSkills: string[];
   disabledSkills: string[];
+
+  // Portable
+  portableHostImport: 'pending' | 'imported' | 'skipped';
 }
 
 /**
@@ -107,6 +110,9 @@ function createDefaultSettings(): AppSettings {
     selectedBundles: ['productivity', 'developer'],
     enabledSkills: [],
     disabledSkills: [],
+
+    // Portable
+    portableHostImport: 'pending',
   };
 }
 
