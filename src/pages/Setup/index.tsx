@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 import { TitleBar } from '@/components/layout/TitleBar';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { ACCENT_ICON_SM, SELECTABLE_ACTIVE, segmentButtonClass } from '@/lib/ui-patterns';
 import { useGatewayStore } from '@/stores/gateway';
@@ -90,6 +89,28 @@ const getDefaultSkills = (t: TFunction): DefaultSkill[] => [
 ];
 
 import { PingClawLogo } from '@/components/PingClawLogo';
+
+/** Long paths / error output: stay inside the card, scroll horizontally instead of overflowing. */
+function SetupScrollableText({
+  children,
+  className,
+  as: Tag = 'div',
+}: {
+  children: React.ReactNode;
+  className?: string;
+  as?: 'div' | 'pre' | 'p' | 'span';
+}) {
+  return (
+    <Tag
+      className={cn(
+        'block max-w-full min-w-0 overflow-x-auto overflow-y-hidden whitespace-pre',
+        className,
+      )}
+    >
+      {children}
+    </Tag>
+  );
+}
 
 function SetupHint({
   children,
@@ -466,13 +487,17 @@ function PortableImportGate({ onDone }: { onDone: () => void }) {
         <div className="rounded-xl border border-border/60 bg-card/80 p-8 shadow-sm backdrop-blur-sm">
           {status && (
             <div className="space-y-3 text-sm">
-              <div>
+              <div className="min-w-0">
                 <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">{t('import.hostPath')}</p>
-                <p className="mt-1 break-all font-mono text-xs text-foreground/90">{status.hostOpenClawDir}</p>
+                <SetupScrollableText as="p" className="mt-1 font-mono text-xs text-foreground/90">
+                  {status.hostOpenClawDir}
+                </SetupScrollableText>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">{t('import.portablePath')}</p>
-                <p className="mt-1 break-all font-mono text-xs text-foreground/90">{status.portableOpenClawDir}</p>
+                <SetupScrollableText as="p" className="mt-1 font-mono text-xs text-foreground/90">
+                  {status.portableOpenClawDir}
+                </SetupScrollableText>
               </div>
               <p className="text-xs text-muted-foreground">{t('import.fileCount', { count: status.hostFileCount })}</p>
             </div>
@@ -495,7 +520,9 @@ function PortableImportGate({ onDone }: { onDone: () => void }) {
           {phase === 'error' && (
             <SetupHint variant="warn" className="mt-6">
               <p className="font-medium">{t('import.errorTitle')}</p>
-              <p className="text-2xs text-muted-foreground">{errorMessage}</p>
+              <SetupScrollableText as="pre" className="text-2xs text-muted-foreground">
+                {errorMessage}
+              </SetupScrollableText>
             </SetupHint>
           )}
 
@@ -829,45 +856,28 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
     }
   };
 
-  const ERROR_TRUNCATE_LEN = 30;
   const gatewayWaiting = checks.gateway.status === 'checking';
 
   const renderStatus = (status: 'checking' | 'success' | 'error', message: string) => {
-    if (status === 'checking') {
-      return (
-        <span className="flex items-center gap-1.5 text-xs text-yellow-400 whitespace-nowrap">
-          <Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin" />
-          {message || t('runtime.status.checking')}
-        </span>
-      );
-    }
-    if (status === 'success') {
-      return (
-        <span className="flex items-center gap-1.5 text-xs text-primary whitespace-nowrap">
-          <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
-          {message}
-        </span>
-      );
-    }
-
-    const isLong = message.length > ERROR_TRUNCATE_LEN;
-    const displayMsg = isLong ? message.slice(0, ERROR_TRUNCATE_LEN) : message;
+    const tone = status === 'checking'
+      ? 'text-yellow-400'
+      : status === 'success'
+        ? 'text-primary'
+        : 'text-red-400';
+    const Icon = status === 'checking'
+      ? Loader2
+      : status === 'success'
+        ? CheckCircle2
+        : XCircle;
+    const label = message || (status === 'checking' ? t('runtime.status.checking') : '');
 
     return (
-      <span className="flex items-center gap-1.5 text-xs text-red-400 whitespace-nowrap">
-        <XCircle className="h-3.5 w-3.5 flex-shrink-0" />
-        <span>{displayMsg}</span>
-        {isLong && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="cursor-pointer text-red-300 hover:text-red-200 font-medium">...</span>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-sm whitespace-normal break-words text-xs">
-              {message}
-            </TooltipContent>
-          </Tooltip>
-        )}
-      </span>
+      <div className={cn('flex min-w-0 max-w-full items-center gap-1.5 text-xs', tone)}>
+        <Icon className={cn('h-3.5 w-3.5 shrink-0', status === 'checking' && 'animate-spin')} />
+        <SetupScrollableText as="span" className={cn('text-xs', tone)}>
+          {label}
+        </SetupScrollableText>
+      </div>
     );
   };
 
@@ -888,7 +898,7 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
             <span className="text-xs font-medium">{t('runtime.nodejs')}</span>
             <p className="mt-0.5 text-2xs text-muted-foreground">{t('runtime.nodejsHint')}</p>
           </div>
-          <div className="flex justify-end">
+          <div className="flex min-w-0 max-w-[min(100%,16rem)] justify-end">
             {renderStatus(checks.nodejs.status, checks.nodejs.message)}
           </div>
         </div>
@@ -897,12 +907,12 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
             <span className="text-xs font-medium">{t('runtime.openclaw')}</span>
             <p className="mt-0.5 text-2xs text-muted-foreground">{t('runtime.openclawHint')}</p>
             {openclawDir && (
-              <p className="mt-1 font-mono text-2xs text-muted-foreground/80 break-all">
+              <SetupScrollableText as="p" className="mt-1 font-mono text-2xs text-muted-foreground/80">
                 {openclawDir}
-              </p>
+              </SetupScrollableText>
             )}
           </div>
-          <div className="flex justify-end self-start">
+          <div className="flex min-w-0 max-w-[min(100%,16rem)] justify-end self-start">
             {renderStatus(checks.openclaw.status, checks.openclaw.message)}
           </div>
         </div>
@@ -918,7 +928,7 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
             </div>
             <p className="mt-0.5 text-2xs text-muted-foreground">{t('runtime.gatewayHint')}</p>
           </div>
-          <div className="flex justify-end self-start">
+          <div className="flex min-w-0 max-w-[min(100%,16rem)] justify-end self-start">
             {renderStatus(checks.gateway.status, checks.gateway.message)}
           </div>
         </div>
@@ -953,10 +963,10 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
 
       {/* Log viewer panel */}
       {showLogs && (
-        <div className="mt-4 p-4 rounded-lg bg-black/40 border border-border">
-          <div className="flex items-center justify-between mb-2">
+        <div className="mt-4 min-w-0 overflow-hidden rounded-lg border border-border bg-black/40 p-4">
+          <div className="mb-2 flex items-center justify-between gap-2">
             <p className="font-medium text-foreground text-sm">{t('runtime.logs.title')}</p>
-            <div className="flex gap-2">
+            <div className="flex shrink-0 gap-2">
               <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleOpenLogDir}>
                 <ExternalLink className="h-3 w-3 mr-1" />
                 {t('runtime.logs.openFolder')}
@@ -966,9 +976,12 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
               </Button>
             </div>
           </div>
-          <pre className="text-xs text-slate-300 bg-black/50 p-3 rounded max-h-60 overflow-auto whitespace-pre-wrap font-mono">
+          <SetupScrollableText
+            as="pre"
+            className="max-h-60 overflow-y-auto rounded bg-black/50 p-3 font-mono text-xs text-slate-300"
+          >
             {logContent || t('runtime.logs.noLogs')}
-          </pre>
+          </SetupScrollableText>
         </div>
       )}
     </div>
@@ -1057,13 +1070,13 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
   const getStatusText = (skill: SkillInstallState) => {
     switch (skill.status) {
       case 'pending':
-        return <span className="text-muted-foreground">{t('installing.status.pending')}</span>;
+        return <span className="text-xs text-muted-foreground">{t('installing.status.pending')}</span>;
       case 'installing':
-        return <span className="text-primary">{t('installing.status.installing')}</span>;
+        return <span className="text-xs text-primary">{t('installing.status.installing')}</span>;
       case 'completed':
-        return <span className="text-primary">{t('installing.status.installed')}</span>;
+        return <span className="text-xs text-primary">{t('installing.status.installed')}</span>;
       case 'failed':
-        return <span className="text-red-400">{t('installing.status.failed')}</span>;
+        return <span className="text-xs text-red-400">{t('installing.status.failed')}</span>;
     }
   };
 
@@ -1098,18 +1111,20 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className={cn(
-              'flex items-center justify-between p-3 rounded-lg',
+              'flex min-w-0 items-center justify-between gap-2 p-3 rounded-lg',
               skill.status === 'installing' ? 'bg-muted' : 'bg-muted/50'
             )}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               {getStatusIcon(skill.status)}
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium">{skill.name}</p>
-                <p className="text-xs text-muted-foreground">{skill.description}</p>
+                <SetupScrollableText as="p" className="text-xs text-muted-foreground">
+                  {skill.description}
+                </SetupScrollableText>
               </div>
             </div>
-            {getStatusText(skill)}
+            <div className="shrink-0">{getStatusText(skill)}</div>
           </motion.div>
         ))}
       </div>
@@ -1119,15 +1134,18 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="p-4 rounded-lg bg-red-900/30 border border-red-500/50 text-red-200 text-sm"
+          className="overflow-hidden rounded-lg border border-red-500/50 bg-red-900/30 p-4 text-sm text-red-200"
         >
-          <div className="flex items-start gap-2">
-            <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
-            <div className="space-y-1">
+          <div className="flex min-w-0 items-start gap-2">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+            <div className="min-w-0 flex-1 space-y-1">
               <p className="font-semibold">{t('installing.error')}</p>
-              <pre className="text-xs bg-black/30 p-2 rounded overflow-x-auto whitespace-pre-wrap font-monospace">
+              <SetupScrollableText
+                as="pre"
+                className="rounded bg-black/30 p-2 font-mono text-xs"
+              >
                 {errorMessage}
-              </pre>
+              </SetupScrollableText>
               <Button
                 variant="link"
                 className="text-red-400 p-0 h-auto text-xs underline"

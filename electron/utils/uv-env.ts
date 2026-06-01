@@ -4,6 +4,7 @@ import { request } from 'https';
 import path from 'path';
 import { logger } from './logger';
 import { getOpenClawConfigDir } from './paths';
+import { getUvStorageEnv } from './uv-storage';
 
 const UV_PYTHON_INSTALL_MIRROR_URL = 'https://registry.npmmirror.com/-/binary/python-build-standalone/';
 const UV_INDEX_URL = 'https://pypi.tuna.tsinghua.edu.cn/simple/';
@@ -154,6 +155,12 @@ export async function getUvMirrorEnv(): Promise<Record<string, string>> {
   return uvConfigFile
     ? { ...UV_MIRROR_ENV, UV_CONFIG_FILE: uvConfigFile }
     : { ...UV_MIRROR_ENV };
+}
+
+/** Mirror + portable storage overrides for all uv subprocesses. */
+export async function getUvRuntimeEnv(): Promise<Record<string, string>> {
+  const mirror = await getUvMirrorEnv();
+  return { ...mirror, ...getUvStorageEnv() };
 }
 
 export async function warmupNetworkOptimization(): Promise<void> {

@@ -24,9 +24,9 @@ import {
   getOpenClawDir,
   getOpenClawEntryPath,
   getOpenClawResolvedDir,
+  getOpenClawForkEnv,
   getOpenClawSkillsDir,
   isOpenClawPresent,
-  isPortableMode,
 } from '../utils/paths';
 import { getUvMirrorEnv } from '../utils/uv-env';
 import { cleanupDanglingWeChatPluginState, listConfiguredChannelsFromConfig, readOpenClawConfig } from '../utils/channel-config';
@@ -610,15 +610,7 @@ export async function prepareGatewayLaunchContext(port: number): Promise<Gateway
     OPENCLAW_SKIP_CHANNELS: skipChannels ? '1' : '',
     CLAWDBOT_SKIP_CHANNELS: skipChannels ? '1' : '',
     OPENCLAW_NO_RESPAWN: '1',
-    ...(isPortableMode()
-      ? {
-        OPENCLAW_STATE_DIR: getOpenClawConfigDir(),
-        OPENCLAW_CONFIG_PATH: getOpenClawConfigPath(),
-        CLAWX_USER_DATA_DIR: process.env.CLAWX_USER_DATA_DIR,
-        PINGCLAW_PORTABLE: '1',
-        PINGCLAW_PORTABLE_ROOT: process.env.PINGCLAW_PORTABLE_ROOT,
-      }
-      : {}),
+    ...getOpenClawForkEnv(),
   };
 
   // Ensure extension-specific packages (e.g. grammy from the telegram

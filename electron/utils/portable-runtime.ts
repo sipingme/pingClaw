@@ -132,6 +132,7 @@ export function bootstrapPortableRuntime(options: {
   process.env.OPENCLAW_CONFIG_PATH = openclawConfigPath;
   process.env.HOME = portableHomeDir;
   process.env.USERPROFILE = portableHomeDir;
+  process.env.OPENCLAW_HOME = portableHomeDir;
 
   cached = {
     enabled: true,

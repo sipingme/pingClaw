@@ -7,6 +7,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { existsSync, mkdirSync, readFileSync, realpathSync } from 'fs';
 import { bootstrapPortableRuntime, isPortableMode } from './portable-runtime';
+import { getUvStorageEnv } from './uv-storage';
 
 bootstrapPortableRuntime({
   execPath: process.execPath,
@@ -110,6 +111,32 @@ export function getPingClawConfigDir(): string {
 }
 
 export { isPortableMode, getPortableRuntime, getPortableRuntimeInfo } from './portable-runtime';
+
+/**
+ * Env vars that must be passed to OpenClaw child processes (Gateway, doctor, …).
+ * Always sets OPENCLAW_STATE_DIR so bundled openclaw never falls back to host ~/.openclaw.
+ */
+export function getOpenClawForkEnv(): Record<string, string | undefined> {
+  const openclawStateDir = getOpenClawConfigDir();
+  const openclawConfigPath = getOpenClawConfigPath();
+  const env: Record<string, string | undefined> = {
+    OPENCLAW_STATE_DIR: openclawStateDir,
+    OPENCLAW_CONFIG_PATH: openclawConfigPath,
+    ...getUvStorageEnv(),
+  };
+
+  if (isPortableMode()) {
+    const portableHome = getExpandHomeDir();
+    env.PINGCLAW_PORTABLE = '1';
+    env.PINGCLAW_PORTABLE_ROOT = process.env.PINGCLAW_PORTABLE_ROOT;
+    env.CLAWX_USER_DATA_DIR = process.env.CLAWX_USER_DATA_DIR;
+    env.HOME = portableHome;
+    env.USERPROFILE = portableHome;
+    env.OPENCLAW_HOME = portableHome;
+  }
+
+  return env;
+}
 
 /**
  * Get PingClaw logs directory

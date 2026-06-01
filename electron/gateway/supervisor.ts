@@ -1,7 +1,7 @@
 import { app, utilityProcess } from 'electron';
 import path from 'path';
 import { existsSync } from 'fs';
-import { getOpenClawDir, getOpenClawEntryPath } from '../utils/paths';
+import { getOpenClawDir, getOpenClawEntryPath, getOpenClawForkEnv } from '../utils/paths';
 import { getUvMirrorEnv } from '../utils/uv-env';
 import { isPythonReady, setupManagedPython } from '../utils/uv-setup';
 import { logger } from '../utils/logger';
@@ -293,6 +293,7 @@ export async function runOpenClawDoctorRepair(): Promise<boolean> {
       ...baseEnvPatched,
       ...uvEnv,
       OPENCLAW_NO_RESPAWN: '1',
+      ...getOpenClawForkEnv(),
     };
 
     const child = utilityProcess.fork(entryScript, doctorArgs, {
