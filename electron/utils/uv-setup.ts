@@ -2,7 +2,8 @@ import { app } from 'electron';
 import { execSync, spawn } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';
-import { getUvRuntimeEnv } from './uv-env';
+import { getUvMirrorEnv, getUvRuntimeEnv } from './uv-env';
+import { getUvStorageEnv } from './uv-storage';
 import { logger } from './logger';
 import { quoteForCmd, needsWinShell } from './paths';
 
@@ -177,27 +178,35 @@ async function runPythonInstall(
  */
 export async function setupManagedPython(): Promise<void> {
   const { bin: uvBin, source } = resolveUvBin();
-  const uvEnv = await getUvRuntimeEnv();
-  const hasMirror = Boolean(uvEnv.UV_INDEX_URL || uvEnv.UV_PYTHON_INSTALL_MIRROR);
+  const storageEnv = getUvStorageEnv();
+  const mirrorEnv = await getUvMirrorEnv();
+  const hasMirror = Boolean(mirrorEnv.UV_INDEX_URL || mirrorEnv.UV_PYTHON_INSTALL_MIRROR);
 
   logger.info(
     `Setting up managed Python 3.12 ` +
-    `(uv=${uvBin}, source=${source}, arch=${process.arch}, mirror=${hasMirror})`
+    `(uv=${uvBin}, source=${source}, arch=${process.arch}, mirror=${hasMirror}, ` +
+    `pythonInstallDir=${storageEnv.UV_PYTHON_INSTALL_DIR ?? 'default'})`,
   );
 
   const baseEnv: Record<string, string | undefined> = { ...process.env };
+  // Always keep portable host-disk paths (exFAT cannot symlink under USB HOME).
+  const envWithStorage: Record<string, string | undefined> = { ...baseEnv, ...storageEnv };
 
   // Attempt 1: with mirror (if applicable)
   try {
-    await runPythonInstall(uvBin, { ...baseEnv, ...uvEnv }, hasMirror ? 'mirror' : 'default');
+    await runPythonInstall(
+      uvBin,
+      { ...envWithStorage, ...mirrorEnv },
+      hasMirror ? 'mirror' : 'default',
+    );
   } catch (firstError) {
     logger.warn('Python install attempt 1 failed:', firstError);
 
     if (hasMirror) {
-      // Attempt 2: retry without mirror to rule out mirror issues
-      logger.info('Retrying Python install without mirror...');
+      // Attempt 2: retry without mirror — still must use host UV_PYTHON_INSTALL_DIR on USB.
+      logger.info('Retrying Python install without mirror (portable uv paths preserved)...');
       try {
-        await runPythonInstall(uvBin, baseEnv, 'no-mirror');
+        await runPythonInstall(uvBin, envWithStorage, 'no-mirror');
       } catch (secondError) {
         logger.error('Python install attempt 2 (no mirror) also failed:', secondError);
         throw secondError;
@@ -207,13 +216,15 @@ export async function setupManagedPython(): Promise<void> {
     }
   }
 
+  const verifyEnv = { ...process.env, ...storageEnv, ...mirrorEnv };
+
   // After installation, verify and log the Python path
   const verifyShell = needsWinShell(uvBin);
   try {
     const findPath = await new Promise<string>((resolve) => {
       const child = spawn(verifyShell ? quoteForCmd(uvBin) : uvBin, ['python', 'find', '3.12'], {
         shell: verifyShell,
-        env: { ...process.env, ...uvEnv },
+        env: verifyEnv,
         windowsHide: true,
       });
       let output = '';

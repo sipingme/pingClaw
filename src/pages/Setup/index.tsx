@@ -1103,8 +1103,8 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
             <div className="flex min-w-0 items-center gap-3">
               {getStatusIcon(skill.status)}
               <div className="min-w-0">
-                <p className="font-medium">{skill.name}</p>
-                <SetupScrollableText as="p" className="text-xs text-muted-foreground">
+                <p className="text-xs font-medium text-foreground/90">{skill.name}</p>
+                <SetupScrollableText as="p" className="text-2xs text-muted-foreground">
                   {skill.description}
                 </SetupScrollableText>
               </div>
@@ -1151,8 +1151,10 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
       <div className="flex items-center justify-between gap-3">
         <p className="text-2xs text-muted-foreground/70">{t('installing.skipHint')}</p>
         <Button
+          data-testid="setup-install-skip-button"
           variant="ghost"
-          className="shrink-0 text-muted-foreground"
+          size="sm"
+          className="h-8 shrink-0 px-3 text-xs text-muted-foreground"
           onClick={onSkip}
         >
           {t('installing.skip')}
