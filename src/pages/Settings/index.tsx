@@ -727,7 +727,7 @@ export function Settings() {
                   label={t('appearance.launchAtStartup')}
                   description={t('appearance.launchAtStartupDesc')}
                 >
-                  <Switch size="sm" checked={launchAtStartup} onCheckedChange={setLaunchAtStartup} />
+                  <Switch size="xs" checked={launchAtStartup} onCheckedChange={setLaunchAtStartup} />
                 </SettingsRow>
               </SettingsGroup>
             )}
@@ -797,12 +797,12 @@ export function Settings() {
 
             <SettingsGroup>
               <SettingsRow label={t('gateway.autoStart')} description={t('gateway.autoStartDesc')}>
-                <Switch size="sm" checked={gatewayAutoStart} onCheckedChange={setGatewayAutoStart} />
+                <Switch size="xs" checked={gatewayAutoStart} onCheckedChange={setGatewayAutoStart} />
               </SettingsRow>
 
               <SettingsRow label={t('advanced.devMode')} description={t('advanced.devModeDesc')}>
                 <Switch
-                  size="sm"
+                  size="xs"
                   checked={devModeUnlocked}
                   onCheckedChange={setDevModeUnlocked}
                   data-testid="settings-dev-mode-switch"
@@ -810,7 +810,7 @@ export function Settings() {
               </SettingsRow>
 
               <SettingsRow label={t('advanced.telemetry')} description={t('advanced.telemetryDesc')}>
-                <Switch size="sm" checked={telemetryEnabled} onCheckedChange={setTelemetryEnabled} />
+                <Switch size="xs" checked={telemetryEnabled} onCheckedChange={setTelemetryEnabled} />
               </SettingsRow>
             </SettingsGroup>
           </SettingsSection>
@@ -826,7 +826,7 @@ export function Settings() {
               <div className="space-y-4 rounded-xl border border-border/60 bg-card/30 p-4" data-testid="settings-proxy-section">
                 <SettingsRow label={t('gateway.proxyTitle')} description={t('gateway.proxyDesc')}>
                   <Switch
-                    size="sm"
+                    size="xs"
                     checked={proxyEnabledDraft}
                     onCheckedChange={setProxyEnabledDraft}
                     data-testid="settings-proxy-toggle"
@@ -986,7 +986,7 @@ export function Settings() {
               </div>
 
               <SettingsRow label={t('developer.wsDiagnostic')} description={t('developer.wsDiagnosticDesc')}>
-                <Switch size="sm" checked={wsDiagnosticEnabled} onCheckedChange={handleWsDiagnosticToggle} />
+                <Switch size="xs" checked={wsDiagnosticEnabled} onCheckedChange={handleWsDiagnosticToggle} />
               </SettingsRow>
 
               <div className="flex items-center justify-between gap-4">
@@ -1079,7 +1079,7 @@ export function Settings() {
             <UpdateSettings />
             <SettingsGroup>
               <SettingsRow label={t('updates.autoCheck')} description={t('updates.autoCheckDesc')}>
-                <Switch size="sm" checked={autoCheckUpdate} onCheckedChange={setAutoCheckUpdate} />
+                <Switch size="xs" checked={autoCheckUpdate} onCheckedChange={setAutoCheckUpdate} />
               </SettingsRow>
             </SettingsGroup>
           </SettingsSection>

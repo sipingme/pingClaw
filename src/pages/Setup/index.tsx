@@ -50,6 +50,8 @@ const STEP = {
   COMPLETE: 3,
 } as const;
 
+const SETUP_NAV_BUTTON_CLASS = 'h-8 px-3 text-xs leading-none';
+
 const getSteps = (t: TFunction): SetupStep[] => [
   {
     id: 'welcome',
@@ -373,7 +375,7 @@ export function Setup() {
                         data-testid="setup-skip-button"
                         variant="ghost"
                         size="sm"
-                        className="h-8 px-3 text-xs"
+                        className={SETUP_NAV_BUTTON_CLASS}
                         onClick={handleSkip}
                       >
                         {t('nav.skipSetup')}
@@ -382,7 +384,7 @@ export function Setup() {
                     <Button
                       data-testid="setup-next-button"
                       size="sm"
-                      className="h-8 px-3 text-xs"
+                      className={SETUP_NAV_BUTTON_CLASS}
                       onClick={handleNext}
                       disabled={!canProceed}
                     >
