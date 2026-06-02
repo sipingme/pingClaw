@@ -709,6 +709,7 @@ export function Skills() {
                       </span>
                     )}
                     <Switch
+                      size="sm"
                       checked={skill.enabled}
                       onCheckedChange={(checked) => handleToggle(skill.id, checked)}
                       disabled={skill.isCore}

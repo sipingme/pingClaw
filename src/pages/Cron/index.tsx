@@ -814,7 +814,7 @@ function CronJobCard({ job, deliveryAccountName, onToggle, onEdit, onDelete, onT
               </p>
             </div>
             <div data-testid={`cron-job-card-switch-${job.id}`} onClick={(e) => e.stopPropagation()}>
-              <Switch checked={job.enabled} onCheckedChange={onToggle} />
+              <Switch size="sm" checked={job.enabled} onCheckedChange={onToggle} />
             </div>
           </div>
 
