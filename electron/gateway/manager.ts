@@ -6,7 +6,9 @@ import { app } from 'electron';
 import path from 'path';
 import { EventEmitter } from 'events';
 import WebSocket from 'ws';
-import { PORTS } from '../utils/config';
+import { resolveGatewayPortSync } from '../utils/gateway-port';
+import { isPortableMode } from '../utils/paths';
+import { getSetting } from '../utils/store';
 import { JsonRpcNotification, isNotification, isResponse } from './protocol';
 import { logger } from '../utils/logger';
 import { captureTelemetryEvent, trackMetric } from '../utils/telemetry';
@@ -151,7 +153,7 @@ export class GatewayManager extends EventEmitter {
   private processExitCode: number | null = null; // set by exit event, replaces exitCode/signalCode
   private ownsProcess = false;
   private ws: WebSocket | null = null;
-  private status: GatewayStatus = { state: 'stopped', port: PORTS.OPENCLAW_GATEWAY };
+  private status: GatewayStatus = { state: 'stopped', port: resolveGatewayPortSync() };
   private readonly stateController: GatewayStateController;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private reconnectAttempts = 0;
@@ -300,6 +302,24 @@ export class GatewayManager extends EventEmitter {
     return this.stateController.isConnected(this.ws?.readyState === WebSocket.OPEN);
   }
 
+
+  private async refreshGatewayPort(): Promise<void> {
+    let port = resolveGatewayPortSync();
+    if (!isPortableMode()) {
+      try {
+        const fromStore = await getSetting('gatewayPort');
+        if (typeof fromStore === 'number' && fromStore > 0 && fromStore <= 65535) {
+          port = fromStore;
+        }
+      } catch {
+        // use sync fallback
+      }
+    }
+    if (this.status.port !== port) {
+      this.setStatus({ port });
+    }
+  }
+
   /**
    * Start Gateway process
    */
@@ -316,6 +336,7 @@ export class GatewayManager extends EventEmitter {
 
     this.startLock = true;
     const startEpoch = this.lifecycleController.bump('start');
+    await this.refreshGatewayPort();
     logger.info(`Gateway start requested (port=${this.status.port})`);
     this.lastSpawnSummary = null;
     this.shouldReconnect = true;

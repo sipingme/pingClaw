@@ -7,6 +7,7 @@
  */
 import { existsSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
+import { PORTABLE_GATEWAY_PORT } from './config';
 import { getHostHomeDir } from './host-home';
 
 const PORTABLE_MARKER = '.pingclaw-portable';
@@ -142,6 +143,10 @@ export function bootstrapPortableRuntime(options: {
   process.env.HOME = portableHomeDir;
   process.env.USERPROFILE = portableHomeDir;
   process.env.OPENCLAW_HOME = portableHomeDir;
+
+  if (!process.env.PINGCLAW_GATEWAY_PORT?.trim()) {
+    process.env.PINGCLAW_GATEWAY_PORT = String(PORTABLE_GATEWAY_PORT);
+  }
 
   cached = {
     enabled: true,

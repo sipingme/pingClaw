@@ -18,7 +18,13 @@ export const PORTS = {
   
   /** OpenClaw Gateway port */
   OPENCLAW_GATEWAY: 18789,
+
+  /** Portable bundle default (coexists with desktop 18789). */
+  PORTABLE_OPENCLAW_GATEWAY: 18889,
 } as const;
+
+/** Portable PingClaw gateway port (alias). */
+export const PORTABLE_GATEWAY_PORT = PORTS.PORTABLE_OPENCLAW_GATEWAY;
 
 /**
  * Get port from environment or default

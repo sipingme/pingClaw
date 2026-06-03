@@ -55,6 +55,7 @@ import { browserOAuthManager } from '../utils/browser-oauth';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { syncAllProviderAuthToRuntime } from '../services/providers/provider-runtime-sync';
 import { createNoopBrowserWindow } from './noop-window';
+import { getGatewayControlUiUrlPatterns, resolveGatewayPortSync } from '../utils/gateway-port';
 import { isPortableMode, getPortableRuntime } from '../utils/paths';
 
 const WINDOWS_APP_USER_MODEL_ID = 'app.pingclaw.desktop';
@@ -307,7 +308,7 @@ async function initialize(): Promise<void> {
 
     if (isPortableMode()) {
       const runtime = getPortableRuntime();
-      logger.info(`Running in portable mode (root=${runtime?.root ?? 'unknown'})`);
+      logger.info(`Running in portable mode (root=${runtime?.root ?? 'unknown'}, gatewayPort=${resolveGatewayPortSync()})`);
     }
 
     await syncLaunchAtStartupSettingFromStore();
@@ -334,7 +335,7 @@ async function initialize(): Promise<void> {
   // The URL filter ensures this callback only fires for gateway requests,
   // avoiding unnecessary overhead on every other HTTP response.
   session.defaultSession.webRequest.onHeadersReceived(
-    { urls: ['http://127.0.0.1:18789/*', 'http://localhost:18789/*'] },
+    { urls: getGatewayControlUiUrlPatterns() },
     (details, callback) => {
       const headers = { ...details.responseHeaders };
       delete headers['X-Frame-Options'];

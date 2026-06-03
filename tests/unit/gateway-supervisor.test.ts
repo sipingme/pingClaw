@@ -134,4 +134,31 @@ describe('gateway supervisor process cleanup', () => {
     );
     expect(mockCreateServer).toHaveBeenCalled();
   });
+
+  it('does not kill or attach to external gateway in portable mode', async () => {
+    process.env.PINGCLAW_PORTABLE = '1';
+    process.env.PINGCLAW_PORTABLE_ROOT = '/tmp/pingclaw-portable-test';
+    vi.resetModules();
+
+    mockExec.mockImplementation((cmd: string, _opts: object, cb: (err: Error | null, stdout: string) => void) => {
+      if (cmd.includes('lsof') || cmd.includes('netstat')) {
+        cb(null, '4321\n');
+        return {} as never;
+      }
+      cb(null, '');
+      return {} as never;
+    });
+
+    const { findExistingGatewayProcess } = await import('@electron/gateway/supervisor');
+    const result = await findExistingGatewayProcess({ port: 18889 });
+    expect(result).toBeNull();
+    expect(mockExec).not.toHaveBeenCalledWith(
+      expect.stringContaining('taskkill'),
+      expect.anything(),
+      expect.anything(),
+    );
+    const killCalls = mockExec.mock.calls.filter((call) => String(call[0]).includes('kill'));
+    expect(killCalls).toHaveLength(0);
+  });
+
 });

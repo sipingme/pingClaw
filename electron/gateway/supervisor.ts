@@ -1,7 +1,7 @@
 import { app, utilityProcess } from 'electron';
 import path from 'path';
 import { existsSync } from 'fs';
-import { getOpenClawDir, getOpenClawEntryPath, getOpenClawForkEnv } from '../utils/paths';
+import { getOpenClawDir, getOpenClawEntryPath, getOpenClawForkEnv, isPortableMode } from '../utils/paths';
 import { getUvMirrorEnv } from '../utils/uv-env';
 import { isPythonReady, setupManagedPython } from '../utils/uv-setup';
 import { logger } from '../utils/logger';
@@ -254,6 +254,19 @@ export async function findExistingGatewayProcess(options: {
   const { port, ownedPid } = options;
 
   try {
+    if (isPortableMode()) {
+      const pids = await getListeningProcessIds(port);
+      const ownsListener = ownedPid != null && pids.includes(String(ownedPid));
+      if (!ownsListener) {
+        logger.debug(
+          `Portable mode: ignoring external gateway on port ${port} (listeners=${pids.join(',') || 'none'}, ownedPid=${ownedPid ?? 'none'})`,
+        );
+        return null;
+      }
+      const ready = await probeGatewayReady(port, 5000);
+      return ready ? { port } : null;
+    }
+
     try {
       const pids = await getListeningProcessIds(port);
       if (pids.length > 0 && (!ownedPid || !pids.includes(String(ownedPid)))) {
